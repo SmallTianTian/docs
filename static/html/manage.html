@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>管理</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <script src="../js/jquery.min.js"></script>
+        <script src="../js/bootstrap.min.js"></script>
+        <script>
+            $(document).ready(documentLoad)
+
+            function documentLoad() {
+                ajax('/all_project_name', null, innerProjects)
+            }
+
+            function innerProjects(data) {
+                $.parseJSON(data).forEach(function(one) {
+                    var name     = $("<div></div>").text(one['name']).addClass("col-xs-5 col-sm-5")
+                    var version  = $("<div></div>").text(one['version']).addClass("col-xs-3 col-sm-3")
+                    var row = $("<div></div>").addClass("row table-bordered")
+                                              .append(name)
+                                              .append(version)
+                    if (one["enabled"] != null) {
+                        var ckbox    = $("<input>").attr("type", "checkbox")
+                                                   .attr("checked", one["enabled"])
+                                                   .change(function() { changeEbabled(this, one['id']) })
+                        var ckboxDiv = $("<div></div>").addClass("col-xs-2 col-sm-2").append(ckbox)
+                        var remove   = $("<span>").addClass("glyphicon glyphicon-trash")
+                                                  .click(function() { removeProject(this, one['id']) })
+                        var removeDi = $("<div></div>").addClass("col-xs-2 col-sm-2").append(remove)
+                        row.append(ckboxDiv)
+                           .append(removeDi)
+                    }
+
+                    $("#projects").append(row)
+                })
+            }
+
+            function changeEbabled(dom, id) {
+                ajax('/enable/' + id + '/' + ($(dom).is(':checked')), null, function(data) {
+                    result = $.parseJSON(data)['result']
+                    if (result) {
+                        $(dom).attr("checked", !$(dom).is(':checked'))
+                    } else {
+                        alert("改变项目状态失败！")
+                    }
+                })
+            }
+
+            function select_language(lang) {
+                $("#language").val(lang)
+            }
+
+            function removeProject(dom, id) {
+                ajax('/removeProject/' + id, null, function(data) {
+                    result = $.parseJSON(data)['result']
+                    if (result) {
+                        $(dom).parent().parent().remove()
+                        $(dom)
+                    } else {
+                        alert("删除项目失败！")
+                    }
+                })
+            }
+
+            function addNewProject(dom) {
+                $(dom).addClass("hidden")
+                $("#add_block").removeClass("hidden")
+            }
+
+            function checkDocUrl(dom) {
+                var val = $(dom).val()
+                $(dom).next().removeClass()
+                             .addClass("input-group-addon")
+
+                ajax('/isDoc/' + val, null, function(data) {
+                    result = $.parseJSON(data)['result']
+                    if (result) {
+                        $(dom).next().addClass("glyphicon glyphicon-ok")
+                    } else {
+                        $(dom).next().addClass("glyphicon glyphicon-remove")
+                    }
+                })
+            }
+
+            function ajax(url, data, successFunc) {
+                xhr = new XMLHttpRequest()
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState == 4) {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            successFunc(xhr.responseText)
+                        } else {
+                            alert("Request failed. status: " + xhr.status + ", statusText: " + xhr.statusText)
+                        }
+                    }
+                }
+                params = []
+                for (key in data) {
+                    params.push(key + "=" + data[key])
+                }
+                trueUrl = url + "?" + params.join("&")
+                xhr.open('GET', trueUrl, true)
+                xhr.send(null)
+            }
+        </script>
+    </head>
+    <body>
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-6 col-md-6">
+                    <div class="row table text-center center-block" id="projects">
+                        <div class="row table-bordered">
+                            <div class="col-xs-5 col-sm-5">
+                                name
+                            </div>
+                            <div class="col-xs-3 col-sm-3">
+                                version
+                            </div>
+                            <div class="col-xs-2 col-sm-2">
+                                display
+                            </div>
+                            <div class="col-xs-2 col-sm-2">
+                                remove
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <span class="glyphicon glyphicon-plus-sign" onclick="addNewProject(this)"></span>
+                        <div id="add_block" class="hidden">
+                            <form role="form" action="/createNewProjectTask" method="POST" enctype=multipart/form-data>
+                                <h3>添加文档</h3>
+                                <div class="form-group">
+                                    <label for="url">地址(URL)</label>
+                                    <input type="url" class="form-control" name="url" placeholder="doc url path.">
+                                </div>
+                                <div class="form-group">
+                                    <label for="name">文档名</label>
+                                    <input type="text" name="name" class="form-control" placeholder="doc name.">
+                                </div>
+                                <div class="form-group">
+                                    <label for="version">版本</label>
+                                    <input type="text" name="version" class="form-control" placeholder="doc version.">
+                                </div>
+                                <div class="form-group">
+                                    <label for="version">语言</label>
+                                    <div class="input-group">
+                                        <input type="text" name="lang" class="form-control" placeholder="doc language(please use code name, like `en`..., or select from right)." id="language">
+                                        <div class="input-group-btn">
+                                            <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">select language <span class="caret"></span></button>
+                                            <ul class="dropdown-menu dropdown-menu-right">
+                                                <li><a onclick="select_language('en')">en</a></li>
+                                                <li><a onclick="select_language('zh')">zh</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="inputfile">图标</label>
+                                    <input type="file" id="inputfile" name="iconhref" accept="image/*">
+                                </div>
+                                <button type="submit" class="btn btn-default" id="test">提交</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-8 col-md-7">
+                </div>
+            </div>
+        </div>
+    </body>
+</html>

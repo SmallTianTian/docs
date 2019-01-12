@@ -1,4 +1,6 @@
 import psycopg2
+import json
+import os
 
 def createTable():
     '''
@@ -101,8 +103,16 @@ def createTable():
         curs.close()
         conn.close()
 
-def getConnection(database='',user='postgres', password='postgres', host='localhost', port='5432'):
-    return psycopg2.connect(database=database, user=user, password=password, host=host, port=port)
+def getConnection():
+    config = '%s/%s' % (os.getcwd(), 'config.json')
+    data = {'database':'', 'user':'postgres', 'password':'postgres', 'host':'localhost', 'port':'5432'}
+    if os.path.exists(config):
+        with open(config, 'r') as f:
+            m = json.load(f)['postgresql']
+            for k, v in m.items():
+                data[k] = m[k]
+
+    return psycopg2.connect(database=data['database'], user=data['user'], password=data['password'], host=data['host'], port=data['port'])
 
 def searchAllProjectName():
     sql = 'SELECT * FROM project'
@@ -246,3 +256,6 @@ class ProjectDB():
                   "VALUES(%s, %s, %s, %s)")
         methodData = (classId, ) + methodData
         self.__templeExecute(sql, methodData)
+
+if __name__ == "__main__":
+    createTable()

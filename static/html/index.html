@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>文档</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <script src="../js/jquery.min.js"></script>
+        <script src="../js/bootstrap.min.js"></script>
+        <script type="text/javascript">
+            window.onload = function() {
+                innerProjectName()
+            }
+
+            function innerProjectName() {
+                projectName = document.getElementById("project_name")
+                ajax("./all_project_name", null, function(response) {
+                    var json = eval('(' + response + ')')
+                    json.unshift({'name': 'All', 'id' : -1})
+                    json.forEach(function(one) {
+                        if (!one['enabled']) {
+                            return
+                        }
+                        var li  = document.createElement("li")
+
+                        if (one['iconHref']) {
+                            var img    = document.createElement("img")
+                            img.style.height = '25px'
+                            img.style.width = '25px'
+                            img.src    = one['iconHref']
+                            li.appendChild(img)
+                        }
+
+                        var text = document.createElement("span")
+                        text.innerText = ' ' + one['name']
+                        text.onclick = function() {
+                            projectChange(one['id'], one['name'])
+                        }
+                        li.appendChild(text)
+
+                        projectName.appendChild(li)
+                    })
+                })
+            }
+
+            function searchKeyChange(input) {
+                var showItem = document.getElementById("show_item")
+                var key = input.value.trim()
+                if (key.length < 2) {
+                    showItem.className = 'dropdown-menu hidden'
+                    return
+                }
+
+                var projectId = document.getElementById("current_project_id").value
+                url = "/fuzzy_query/" + projectId + "/" + key
+                ajax(url, null, function(response) {
+                    var json = eval('(' + response + ')')
+
+                    showItem.innerHTML = ''
+
+                    if (json.length == 0) {
+                        showItem.className = 'dropdown-menu hidden'
+                        return;
+                    }
+                    json.forEach(function(one) {
+                        var li   = document.createElement("li")
+                        var proj = document.createElement("img")
+                        proj.src = one['project_icon']
+                        proj.style.height = '20px'
+                        proj.style.width  = '20px'
+                        li.appendChild(proj)
+                        var type = document.createElement("img")
+                        type.src  = recoverIcon(one['key_type'])
+                        li.appendChild(type)
+                        var text = document.createElement("text")
+                        text.innerText = '  ' + one["sign_name"]
+                        li.appendChild(text)
+
+                        li.onclick = function() {
+                            openDocumentHtml(one['href'])
+                            showOneClassParam(one['key_type'], one['key_id'])
+                        }
+                        showItem.appendChild(li)
+                    })
+                    showItem.className = 'dropdown-menu'
+                })
+            }
+
+            function recoverIcon(type) {
+                url = '/images/' + type + '.jpg'
+                return url
+            }
+
+            function showOneClassParam(type, id) {
+                var show = document.getElementById("show_class_property")
+
+                url = "/detailed/" + type + "/" + id
+                ajax(url, null, function(response) {
+                    var json = eval('(' + response + ')')
+
+                    show.innerHTML = ''
+                    items = ['Constructors', 'Methods', 'Fields']
+                    for (index in items) {
+                        name = items[index]
+                        if (json[name].length) {
+                            var title = document.createElement("li")
+                            title.innerText = name
+                            title.className = "h3"
+                            show.appendChild(title)
+
+                            json[name].forEach(function(one) {
+                                var li = document.createElement("li")
+                                var a  = document.createElement("a")
+                                a.innerText = one['name']
+                                a.style = 'cursor:pointer;'
+                                a.onclick = function() {
+                                    openDocumentHtml(one['href'])
+                                }
+                                li.appendChild(a)
+                                show.appendChild(li)
+                            })
+                        }
+                    }
+                })
+            }
+
+            function openDocumentHtml(href) {
+                window.frames['show_document'].location.href = href
+            }
+
+            function projectChange(id, name) {
+                var current_id = document.getElementById("current_project_id")
+                current_id.value = id
+
+                var current_name = document.getElementById("current_project_name")
+                current_name.innerText = name
+                var b = document.createElement("b")
+                b.className = 'caret'
+                current_name.appendChild(b)
+            }
+
+            function search() {
+                projectId = document.getElementById("project_name").value
+                keyWord   = document.getElementById("key").value
+            }
+
+            function ajax(url, data, successFunc) {
+                xhr = new XMLHttpRequest()
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState == 4) {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            successFunc(xhr.responseText)
+                        } else {
+                            alert("Request failed. status: " + xhr.status + ", statusText: " + xhr.statusText)
+                        }
+                    }
+                }
+                params = []
+                for (key in data) {
+                    params.push(key + "=" + data[key])
+                }
+                trueUrl = url + "?" + params.join("&")
+                xhr.open('GET', trueUrl, true)
+                xhr.send(null)
+            }
+        </script>
+    </head>
+    <body style="padding-top: 70px">
+        <nav class="navbar navbar-default navbar-fixed-top">
+            <div class="container">
+                <span class="glyphicon glyphicon-search navbar-brand" aria-hidden="true"></span>
+
+                <div class="navbar-header">
+                    <div class="navbar-brand">文档查询</div>
+                </div>
+
+                <div class="row" style="margin-top:0.6em">
+                    <div class="col-lg-6">
+                        <div class="input-group">
+                            <div class="input-group-btn">
+                                <button id="current_project_name" type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">All<span class="caret"></span></button>
+                                <input type="hidden" id="current_project_id" value="-1"/>
+                                <ul class="dropdown-menu" id="project_name"></ul>
+                            </div><!-- /btn-group -->
+                            <input type="text" class="form-control dropdown-toggle" id="search_key" data-toggle="dropdown" aria-expanded="false" oninput="searchKeyChange(this)">
+                            <ul class="dropdown-menu hidden" id="show_item"></ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        <div class="container-fluid">
+            <div class="col-lg-2 col-md-2 col-sm-2">
+                <ul id="show_class_property" style="height:600px;overflow:auto;" class="list-unstyled"></ul>
+            </div>
+            <div class="embed-responsive embed-responsive-16by9">
+                <iframe name="show_document" class="embed-responsive-item" src="manage.html"/>
+            </div>
+        </div>
+        <html>
